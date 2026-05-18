@@ -220,7 +220,7 @@ function drawScene(
   upgrades: Upgrades,
   saveData: SaveData
 ) {
-  const { bird, pipes, cigarettes, smokeParticles, score, phase, runCoins, shieldActive, buzzed, buzzTimer } = state;
+  const { bird, pipes, cigarettes = [], smokeParticles = [], score, phase, runCoins, shieldActive, buzzed = false, buzzTimer = 0 } = state;
   const stats = getStats(upgrades);
   const isSlowed = state.slowActive;
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
