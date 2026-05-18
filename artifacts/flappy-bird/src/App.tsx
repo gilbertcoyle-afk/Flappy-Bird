@@ -72,6 +72,7 @@ interface GameState {
   buzzed: boolean;
   buzzTimer: number;
   cigIdCounter: number;
+  runCigsSmoked: number;
 }
 
 interface SaveData {
@@ -452,7 +453,7 @@ function drawScene(
     ctx.fillText("Collect 🚬 for a coin buzz!", CANVAS_W / 2, CANVAS_H / 2 + 28);
     if (saveData.bestScore > 0) {
       ctx.fillStyle = "#a3e635"; ctx.font = "14px Arial";
-      ctx.fillText(`Best: ${saveData.bestScore}  •  Smoked: ${saveData.cigarettesSmoked}`, CANVAS_W / 2, CANVAS_H / 2 + 62);
+      ctx.fillText(`Best: ${saveData.bestScore}  •  Smoked: ${saveData.cigarettesSmoked || 0}`, CANVAS_W / 2, CANVAS_H / 2 + 62);
     }
     ctx.shadowBlur = 0;
   }
@@ -469,7 +470,7 @@ function drawScene(
     ctx.fillStyle = "#F1C40F"; ctx.font = "17px Arial";
     ctx.fillText(`+${runCoins} coins earned`, CANVAS_W / 2, CANVAS_H / 2 + 12);
     ctx.fillStyle = "#a3e635"; ctx.font = "14px Arial";
-    ctx.fillText(`Best: ${saveData.bestScore}  •  Smoked: ${saveData.cigarettesSmoked}`, CANVAS_W / 2, CANVAS_H / 2 + 40);
+    ctx.fillText(`Best: ${saveData.bestScore}  •  Smoked: ${saveData.cigarettesSmoked || 0}`, CANVAS_W / 2, CANVAS_H / 2 + 40);
     ctx.fillStyle = "rgba(255,255,255,0.8)"; ctx.font = "15px Arial";
     ctx.fillText("Click or Space to try again", CANVAS_W / 2, CANVAS_H / 2 + 76);
     ctx.shadowBlur = 0;
@@ -500,6 +501,7 @@ function makeInitialGame(): GameState {
     slowActive: false, slowTimer: 0,
     buzzed: false, buzzTimer: 0,
     cigIdCounter: 0,
+    runCigsSmoked: 0,
   };
 }
 
@@ -570,6 +572,7 @@ export default function App() {
         buzzed: false,
         buzzTimer: 0,
         cigIdCounter: 0,
+        runCigsSmoked: 0,
         ...raw,
       };
       gameRef.current = gs;
@@ -620,14 +623,14 @@ export default function App() {
         }
 
         // Cigarette collection
-        let cigCollected = 0;
+        let newlyCollected = 0;
         let newBuzzed = gs.buzzed;
         let newBuzzTimer = gs.buzzTimer;
         newCigs = newCigs.map((c) => {
           if (!c.collected) {
             const dx = BIRD_X - c.x, dy = newBird.y - c.y;
             if (Math.sqrt(dx * dx + dy * dy) < BIRD_R + 14) {
-              cigCollected++;
+              newlyCollected++;
               newBuzzed = true;
               newBuzzTimer = stats.buzzDuration;
               earnedCoins += stats.cigCoinBonus * coinMult;
@@ -636,9 +639,10 @@ export default function App() {
           }
           return c;
         });
+        const newRunCigsSmoked = gs.runCigsSmoked + newlyCollected;
 
         // Buzz timer
-        if (newBuzzed && !cigCollected) {
+        if (newBuzzed && !newlyCollected) {
           newBuzzTimer = Math.max(0, newBuzzTimer - 1);
           if (newBuzzTimer === 0) newBuzzed = false;
         }
@@ -689,7 +693,7 @@ export default function App() {
             bestScore: Math.max(sd.bestScore, newScore),
             totalRuns: sd.totalRuns + 1,
             lifetimeCoins: sd.lifetimeCoins + totalRunCoins,
-            cigarettesSmoked: sd.cigarettesSmoked + (cigCollected),
+            cigarettesSmoked: (sd.cigarettesSmoked || 0) + newRunCigsSmoked,
           });
         }
 
@@ -701,7 +705,7 @@ export default function App() {
           phase, shieldActive, shieldUsed,
           slowActive, slowTimer,
           buzzed: newBuzzed, buzzTimer: newBuzzTimer,
-          cigIdCounter,
+          cigIdCounter, runCigsSmoked: newRunCigsSmoked,
         };
       } else if (gs.phase === "idle") {
         bgOffRef.current += 0.4;
@@ -772,7 +776,7 @@ export default function App() {
           <div style={{ textAlign: "right" }}>
             <div style={{ color: "#9ca3af", fontSize: 11 }}>Best</div>
             <div style={{ color: "#a3e635", fontSize: 18, fontWeight: "bold" }}>{saveData.bestScore}</div>
-            <div style={{ color: "#6b7280", fontSize: 11 }}>Smoked: {saveData.cigarettesSmoked} 🚬</div>
+            <div style={{ color: "#6b7280", fontSize: 11 }}>Smoked: {saveData.cigarettesSmoked || 0} 🚬</div>
           </div>
         </div>
 
