@@ -563,7 +563,16 @@ export default function App() {
     const ctx = canvas.getContext("2d")!;
 
     function loop() {
-      const gs = gameRef.current;
+      const raw = gameRef.current;
+      const gs: GameState = {
+        cigarettes: [],
+        smokeParticles: [],
+        buzzed: false,
+        buzzTimer: 0,
+        cigIdCounter: 0,
+        ...raw,
+      };
+      gameRef.current = gs;
       const sd = saveDataRef.current;
       const stats = getStats(sd.upgrades);
       const PW = 58;
