@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Flappy Bird"
+version = "1.0.0"
+id = "artifacts/flappy-bird"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24558
+
+[services.development]
+run = "pnpm --filter @workspace/flappy-bird run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/flappy-bird", "run", "build" ]
+publicDir = "artifacts/flappy-bird/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24558"
+BASE_PATH = "/"
