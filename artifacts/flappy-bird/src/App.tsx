@@ -618,8 +618,23 @@ export default function App() {
 
         let cigIdCounter = gs.cigIdCounter;
         if (newFrame % spawnInterval === Math.floor(spawnInterval / 2)) {
-          const gy = 60 + Math.random() * (CANVAS_H - 36 - 60 - 60) + 30;
-          newCigs = [...newCigs, { id: cigIdCounter++, x: CANVAS_W + 20, y: gy, collected: false }];
+          const cigSpawnX = CANVAS_W + 20;
+          // Both cigs and pipes move at the same speed, so their relative x never changes.
+          // Check which pipes will permanently overlap this cig horizontally and constrain Y to their gap.
+          const margin = 22;
+          let safeMinY = 50;
+          let safeMaxY = CANVAS_H - 36 - 50;
+          for (const pipe of newPipes) {
+            const relX = cigSpawnX - pipe.x;
+            if (relX >= -4 && relX < PW + 4) {
+              safeMinY = Math.max(safeMinY, pipe.topH + margin);
+              safeMaxY = Math.min(safeMaxY, pipe.topH + stats.pipeGap - margin);
+            }
+          }
+          if (safeMaxY > safeMinY) {
+            const gy = safeMinY + Math.random() * (safeMaxY - safeMinY);
+            newCigs = [...newCigs, { id: cigIdCounter++, x: cigSpawnX, y: gy, collected: false }];
+          }
         }
 
         // Cigarette collection
