@@ -645,7 +645,8 @@ export default function App() {
         const newFrame = gs.frame + 1;
 
         let newPipes = gs.pipes.map((p) => ({ ...p, x: p.x - stats.pipeSpeed * speedMult })).filter((p) => p.x + PW > -5);
-        if (newFrame % stats.pipeInterval === 0) {
+        const effectivePipeInterval = gs.slowActive ? Math.round(stats.pipeInterval / speedMult) : stats.pipeInterval;
+        if (newFrame % effectivePipeInterval === 0) {
           const min = 75, max = CANVAS_H - stats.pipeGap - 75;
           newPipes = [...newPipes, { x: CANVAS_W + 10, topH: Math.floor(Math.random() * (max - min + 1)) + min, scored: false }];
         }
