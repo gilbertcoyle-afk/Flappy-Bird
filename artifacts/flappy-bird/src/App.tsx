@@ -600,26 +600,16 @@ function drawScene(
       ctx.fillText(lastPerk.rarity.toUpperCase() + "  •  " + lastPerk.desc, 76, 94);
     }
 
-    // Big countdown number (scales down as timer counts down within each second)
-    const t = state.countdownTimer;
-    const countVal = Math.ceil(t / 50); // 3 at 150-101, 2 at 100-51, 1 at 50-1
-    const frac = (t % 50) / 50;        // 1.0 = just changed, 0.0 = about to change
-    const fontSize = 100 + frac * 30;
-    const alpha = 0.4 + frac * 0.6;
-
-    ctx.globalAlpha = alpha;
-    ctx.font = `bold ${Math.round(fontSize)}px Arial`;
+    // Pulsing "press space" prompt
+    const pulse = 0.55 + 0.45 * Math.sin((state.frame / 30) * Math.PI);
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 18px Arial";
     ctx.textAlign = "center";
-    const numColor = countVal === 3 ? "#ef4444" : countVal === 2 ? "#f59e0b" : "#a3e635";
-    ctx.shadowColor = numColor; ctx.shadowBlur = 28;
-    ctx.fillStyle = numColor;
-    ctx.fillText(String(countVal), CANVAS_W / 2, CANVAS_H / 2 + 40);
+    ctx.shadowColor = "#a3e635"; ctx.shadowBlur = 16;
+    ctx.fillText("PRESS SPACE or TAP to continue", CANVAS_W / 2, CANVAS_H / 2 + 48);
     ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
-
-    ctx.fillStyle = "rgba(255,255,255,0.35)";
-    ctx.font = "13px Arial";
-    ctx.fillText("get ready…", CANVAS_W / 2, CANVAS_H / 2 + 80);
   }
 }
 
@@ -756,6 +746,12 @@ export default function App() {
     gameRef.current = makeInitialGame(0);
   }, [isAuthenticated, persistSave]);
 
+  const resumeFromCountdown = useCallback(() => {
+    const gs = gameRef.current;
+    if (gs.phase !== "countdown") return;
+    gameRef.current = { ...gs, phase: "playing", countdownTimer: 0 };
+  }, []);
+
   // ── Canvas click/touch ──────────────────────────────────────────────────
   const handleCanvasInteract = useCallback((clientX: number, clientY: number) => {
     const gs = gameRef.current;
@@ -766,10 +762,12 @@ export default function App() {
         (clientX - rect.left) * (CANVAS_W / rect.width),
         (clientY - rect.top) * (CANVAS_H / rect.height)
       );
+    } else if (gs.phase === "countdown") {
+      resumeFromCountdown();
     } else {
       flap();
     }
-  }, [flap, choosePerk]);
+  }, [flap, choosePerk, resumeFromCountdown]);
 
   // ── Leaderboard fetch ────────────────────────────────────────────────────
   useEffect(() => {
@@ -798,12 +796,16 @@ export default function App() {
   // ── Keyboard ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Space" || e.key === " " || e.key === "ArrowUp") { e.preventDefault(); flap(); }
+      if (e.code === "Space" || e.key === " " || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (gameRef.current.phase === "countdown") { resumeFromCountdown(); }
+        else { flap(); }
+      }
       if (e.key === "s" || e.key === "S") activateSlow();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [flap, activateSlow]);
+  }, [flap, activateSlow, resumeFromCountdown]);
 
   // ── Game loop ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -827,12 +829,8 @@ export default function App() {
       }
 
       if (gs.phase === "countdown") {
-        const newCountdownTimer = gs.countdownTimer - 1;
-        if (newCountdownTimer <= 0) {
-          gameRef.current = { ...gs, phase: "playing", countdownTimer: 0, frame: gs.frame + 1 };
-        } else {
-          gameRef.current = { ...gs, countdownTimer: newCountdownTimer, frame: gs.frame + 1 };
-        }
+        // Just tick the frame for the pulse animation; wait for user to press Space/tap
+        gameRef.current = { ...gs, frame: gs.frame + 1 };
         drawScene(ctx, gameRef.current, bgOffRef.current, sd.upgrades, sd);
         rafRef.current = requestAnimationFrame(loop);
         return;
