@@ -78,7 +78,7 @@ interface GameState {
   score: number;
   runCoins: number;
   frame: number;
-  phase: "idle" | "playing" | "choosing" | "dead";
+  phase: "idle" | "playing" | "choosing" | "countdown" | "dead";
   shieldCharges: number;
   slowActive: boolean;
   slowTimer: number;
@@ -89,6 +89,8 @@ interface GameState {
   runPerks: PerkDef[];
   perkChoices: PerkDef[];
   nextMilestone: number;
+  pipeSpawnDist: number;
+  countdownTimer: number;
 }
 
 interface SaveData {
@@ -576,6 +578,49 @@ function drawScene(
 
     ctx.shadowBlur = 0;
   }
+
+  // Countdown overlay
+  if (phase === "countdown") {
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Show the perk that was just picked
+    const lastPerk = state.runPerks[state.runPerks.length - 1];
+    if (lastPerk) {
+      const rColor = RARITY_COLOR[lastPerk.rarity];
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      rr(ctx, 28, 55, PERK_CARD_W, 52, 10); ctx.fill();
+      ctx.strokeStyle = rColor; ctx.lineWidth = 1.5;
+      rr(ctx, 28, 55, PERK_CARD_W, 52, 10); ctx.stroke();
+      ctx.font = "22px Arial"; ctx.textAlign = "left";
+      ctx.fillText(lastPerk.icon, 42, 91);
+      ctx.fillStyle = "white"; ctx.font = "bold 14px Arial";
+      ctx.fillText(lastPerk.name, 76, 78);
+      ctx.fillStyle = rColor; ctx.font = "bold 10px Arial";
+      ctx.fillText(lastPerk.rarity.toUpperCase() + "  •  " + lastPerk.desc, 76, 94);
+    }
+
+    // Big countdown number (scales down as timer counts down within each second)
+    const t = state.countdownTimer;
+    const countVal = Math.ceil(t / 50); // 3 at 150-101, 2 at 100-51, 1 at 50-1
+    const frac = (t % 50) / 50;        // 1.0 = just changed, 0.0 = about to change
+    const fontSize = 100 + frac * 30;
+    const alpha = 0.4 + frac * 0.6;
+
+    ctx.globalAlpha = alpha;
+    ctx.font = `bold ${Math.round(fontSize)}px Arial`;
+    ctx.textAlign = "center";
+    const numColor = countVal === 3 ? "#ef4444" : countVal === 2 ? "#f59e0b" : "#a3e635";
+    ctx.shadowColor = numColor; ctx.shadowBlur = 28;
+    ctx.fillStyle = numColor;
+    ctx.fillText(String(countVal), CANVAS_W / 2, CANVAS_H / 2 + 40);
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.font = "13px Arial";
+    ctx.fillText("get ready…", CANVAS_W / 2, CANVAS_H / 2 + 80);
+  }
 }
 
 // ─── Upgrade Config ───────────────────────────────────────────────────────────
@@ -603,6 +648,8 @@ function makeInitialGame(initialShieldCharges = 0): GameState {
     cigIdCounter: 0, runCigsSmoked: 0,
     runPerks: [], perkChoices: [],
     nextMilestone: 5,
+    pipeSpawnDist: BASE_PIPE_INTERVAL * BASE_PIPE_SPEED,
+    countdownTimer: 0,
   };
 }
 
@@ -653,7 +700,8 @@ export default function App() {
         }
         gameRef.current = {
           ...gs,
-          phase: "playing",
+          phase: "countdown",
+          countdownTimer: 150,
           runPerks: newRunPerks,
           perkChoices: [],
           nextMilestone: nextMilestoneAfter(gs.nextMilestone),
@@ -666,7 +714,7 @@ export default function App() {
 
   const flap = useCallback(() => {
     const gs = gameRef.current;
-    if (gs.phase === "choosing") return;
+    if (gs.phase === "choosing" || gs.phase === "countdown") return;
     const sd = saveDataRef.current;
     const stats = getStats(sd.upgrades, gs.runPerks);
     if (gs.phase === "idle") {
@@ -778,6 +826,18 @@ export default function App() {
         return;
       }
 
+      if (gs.phase === "countdown") {
+        const newCountdownTimer = gs.countdownTimer - 1;
+        if (newCountdownTimer <= 0) {
+          gameRef.current = { ...gs, phase: "playing", countdownTimer: 0, frame: gs.frame + 1 };
+        } else {
+          gameRef.current = { ...gs, countdownTimer: newCountdownTimer, frame: gs.frame + 1 };
+        }
+        drawScene(ctx, gameRef.current, bgOffRef.current, sd.upgrades, sd);
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
+
       if (gs.phase === "playing") {
         const speedMult = gs.slowActive ? 0.3 : 1.0;
         bgOffRef.current += stats.pipeSpeed * speedMult;
@@ -788,10 +848,13 @@ export default function App() {
         const newFrame = gs.frame + 1;
 
         let newPipes = gs.pipes.map((p) => ({ ...p, x: p.x - stats.pipeSpeed * speedMult })).filter((p) => p.x + PW > -5);
-        const effectivePipeInterval = gs.slowActive ? Math.round(stats.pipeInterval / speedMult) : stats.pipeInterval;
-        if (newFrame % effectivePipeInterval === 0) {
+        // Pixel-distance-based spawning: always stats.pipeInterval * stats.pipeSpeed pixels apart
+        // regardless of speedMult, so slow time never bunches pipes.
+        let newPipeSpawnDist = gs.pipeSpawnDist - stats.pipeSpeed * speedMult;
+        if (newPipeSpawnDist <= 0) {
           const min = 75, max = CANVAS_H - stats.pipeGap - 75;
           newPipes = [...newPipes, { x: CANVAS_W + 10, topH: Math.floor(Math.random() * (max - min + 1)) + min, scored: false }];
+          newPipeSpawnDist += stats.pipeInterval * stats.pipeSpeed;
         }
 
         let newScore = gs.score;
@@ -900,6 +963,8 @@ export default function App() {
           cigIdCounter, runCigsSmoked: newRunCigsSmoked,
           runPerks: gs.runPerks, perkChoices: gs.perkChoices,
           nextMilestone: gs.nextMilestone,
+          pipeSpawnDist: newPipeSpawnDist,
+          countdownTimer: 0,
         };
 
         if (triggeredMilestone && phase !== "dead") {
