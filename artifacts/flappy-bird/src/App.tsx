@@ -669,12 +669,41 @@ export default function App() {
   saveDataRef.current = saveData;
   const [, tick] = useState(0);
 
-  const { user, isAuthenticated, isLoading: authLoading, login, logout } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, login, register, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<"shop" | "leaderboard">("shop");
   const [leaderboardSort, setLeaderboardSort] = useState<"score" | "coins">("score");
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const prevTotalRunsRef = useRef(saveData.totalRuns);
+
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authUsername, setAuthUsername] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+
+  const openAuthModal = useCallback((mode: "login" | "register" = "login") => {
+    setAuthMode(mode);
+    setAuthUsername("");
+    setAuthPassword("");
+    setAuthError("");
+    setShowAuthModal(true);
+  }, []);
+
+  const handleAuthSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthSubmitting(true);
+    setAuthError("");
+    const fn = authMode === "login" ? login : register;
+    const result = await fn(authUsername.trim(), authPassword);
+    setAuthSubmitting(false);
+    if (result.error) {
+      setAuthError(result.error);
+    } else {
+      setShowAuthModal(false);
+    }
+  }, [authMode, authUsername, authPassword, login, register]);
 
   const persistSave = useCallback((data: SaveData) => {
     saveSave(data);
@@ -1086,12 +1115,15 @@ export default function App() {
           <div>
             {authLoading ? <div style={{ color: "#4b5563", fontSize: 11 }}>...</div>
               : isAuthenticated && user ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  {user.profileImageUrl && <img src={user.profileImageUrl} alt="" style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} />}
-                  <button onClick={logout} style={{ background: "transparent", border: "1px solid #374151", color: "#9ca3af", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>Log out</button>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                  <div style={{ color: "#e5e7eb", fontSize: 11, fontWeight: "bold" }}>{user.firstName ?? "Player"}</div>
+                  <button onClick={() => logout()} style={{ background: "transparent", border: "1px solid #374151", color: "#9ca3af", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>Log out</button>
                 </div>
               ) : (
-                <button onClick={login} style={{ background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "white", border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>Log in</button>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => openAuthModal("login")} style={{ background: "transparent", border: "1px solid #374151", color: "#9ca3af", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: "bold", cursor: "pointer" }}>Log in</button>
+                  <button onClick={() => openAuthModal("register")} style={{ background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "white", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: "bold", cursor: "pointer" }}>Register</button>
+                </div>
               )}
           </div>
         </div>
@@ -1239,7 +1271,10 @@ export default function App() {
             {!isAuthenticated && !authLoading && (
               <div style={{ background: "#111827", borderRadius: 10, padding: "12px", textAlign: "center" }}>
                 <div style={{ color: "#9ca3af", fontSize: 12, marginBottom: 8 }}>Log in to appear on the leaderboard</div>
-                <button onClick={login} style={{ background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "white", border: "none", borderRadius: 8, padding: "6px 16px", fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>Log in</button>
+                <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+                  <button onClick={() => openAuthModal("login")} style={{ background: "transparent", border: "1px solid #374151", color: "#9ca3af", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>Log in</button>
+                  <button onClick={() => openAuthModal("register")} style={{ background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "white", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>Register</button>
+                </div>
               </div>
             )}
 
@@ -1311,6 +1346,107 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* ─── Auth Modal ──────────────────────────────────────────────────── */}
+      {showAuthModal && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAuthModal(false); }}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1000, padding: 16,
+          }}
+        >
+          <div style={{
+            background: "#1a1f2e", borderRadius: 18, padding: "28px 24px",
+            width: "100%", maxWidth: 340, boxShadow: "0 8px 40px rgba(0,0,0,0.8)",
+            display: "flex", flexDirection: "column", gap: 14,
+          }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ color: "#F1C40F", fontSize: 22, fontWeight: "bold", marginBottom: 4 }}>FLAPPY INC.</div>
+              <div style={{ color: "#9ca3af", fontSize: 13 }}>
+                {authMode === "login" ? "Welcome back!" : "Create an account to save your scores"}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", background: "#111827", borderRadius: 8, padding: 3, gap: 3 }}>
+              {(["login", "register"] as const).map((m) => (
+                <button key={m} onClick={() => { setAuthMode(m); setAuthError(""); }} style={{
+                  flex: 1, background: authMode === m ? "#1e293b" : "transparent",
+                  color: authMode === m ? "#e5e7eb" : "#6b7280",
+                  border: "none", borderRadius: 6, padding: "6px 0", fontSize: 12,
+                  fontWeight: authMode === m ? "bold" : "normal", cursor: "pointer",
+                }}>
+                  {m === "login" ? "Log In" : "Register"}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleAuthSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div>
+                <label style={{ color: "#9ca3af", fontSize: 11, display: "block", marginBottom: 4 }}>Username</label>
+                <input
+                  type="text"
+                  value={authUsername}
+                  onChange={(e) => setAuthUsername(e.target.value)}
+                  placeholder="e.g. flappy_champ"
+                  autoComplete="username"
+                  style={{
+                    width: "100%", background: "#111827", border: "1px solid #374151",
+                    borderRadius: 8, padding: "9px 12px", color: "#e5e7eb", fontSize: 14,
+                    outline: "none", boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ color: "#9ca3af", fontSize: 11, display: "block", marginBottom: 4 }}>Password</label>
+                <input
+                  type="password"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  placeholder={authMode === "register" ? "At least 6 characters" : "Your password"}
+                  autoComplete={authMode === "register" ? "new-password" : "current-password"}
+                  style={{
+                    width: "100%", background: "#111827", border: "1px solid #374151",
+                    borderRadius: 8, padding: "9px 12px", color: "#e5e7eb", fontSize: 14,
+                    outline: "none", boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              {authError && (
+                <div style={{ background: "#2d0a0a", border: "1px solid #7f1d1d", borderRadius: 8, padding: "8px 12px", color: "#fca5a5", fontSize: 12 }}>
+                  {authError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={authSubmitting || !authUsername.trim() || !authPassword}
+                style={{
+                  background: authSubmitting || !authUsername.trim() || !authPassword
+                    ? "#1f2937"
+                    : "linear-gradient(135deg, #3b82f6, #2563eb)",
+                  color: authSubmitting || !authUsername.trim() || !authPassword ? "#4b5563" : "white",
+                  border: "none", borderRadius: 10, padding: "11px 0",
+                  fontSize: 14, fontWeight: "bold",
+                  cursor: authSubmitting || !authUsername.trim() || !authPassword ? "default" : "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                {authSubmitting ? "Please wait..." : authMode === "login" ? "Log In" : "Create Account"}
+              </button>
+            </form>
+
+            <button
+              onClick={() => setShowAuthModal(false)}
+              style={{ background: "transparent", border: "none", color: "#4b5563", fontSize: 12, cursor: "pointer", textAlign: "center" }}
+            >
+              Continue without account
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

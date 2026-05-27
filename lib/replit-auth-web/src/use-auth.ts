@@ -7,8 +7,10 @@ interface AuthState {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: () => void;
-  logout: () => void;
+  login: (username: string, password: string) => Promise<{ error?: string }>;
+  register: (username: string, password: string) => Promise<{ error?: string }>;
+  logout: () => Promise<void>;
+  refetch: () => void;
 }
 
 export function useAuth(): AuthState {
@@ -17,6 +19,7 @@ export function useAuth(): AuthState {
 
   useEffect(() => {
     let cancelled = false;
+    setIsLoading(true);
 
     fetch("/api/auth/user", { credentials: "include" })
       .then((res) => {
@@ -36,18 +39,53 @@ export function useAuth(): AuthState {
         }
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  const login = useCallback(() => {
-    const base = import.meta.env.BASE_URL.replace(/\/+$/, "") || "/";
-    window.location.href = `/api/login?returnTo=${encodeURIComponent(base)}`;
+  const refetch = useCallback(() => {
+    fetch("/api/auth/user", { credentials: "include" })
+      .then((res) => res.json() as Promise<{ user: AuthUser | null }>)
+      .then((data) => setUser(data.user ?? null))
+      .catch(() => setUser(null));
   }, []);
 
-  const logout = useCallback(() => {
-    window.location.href = "/api/logout";
+  const login = useCallback(async (username: string, password: string): Promise<{ error?: string }> => {
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json() as { error?: string; user?: AuthUser };
+      if (!res.ok) return { error: data.error ?? "Login failed" };
+      if (data.user) setUser(data.user as AuthUser);
+      return {};
+    } catch {
+      return { error: "Network error" };
+    }
+  }, []);
+
+  const register = useCallback(async (username: string, password: string): Promise<{ error?: string }> => {
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json() as { error?: string; user?: AuthUser };
+      if (!res.ok) return { error: data.error ?? "Registration failed" };
+      if (data.user) setUser(data.user as AuthUser);
+      return {};
+    } catch {
+      return { error: "Network error" };
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    setUser(null);
   }, []);
 
   return {
@@ -55,6 +93,8 @@ export function useAuth(): AuthState {
     isLoading,
     isAuthenticated: !!user,
     login,
+    register,
     logout,
+    refetch,
   };
 }
