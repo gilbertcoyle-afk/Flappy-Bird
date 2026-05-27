@@ -859,7 +859,14 @@ export default function App() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
 
-    function loop() {
+    let lastTime: number | null = null;
+    function loop(now: number) {
+      // Normalize to 60 fps — dt=1.0 at 60fps, 0.5 at 30fps, 2.0 at 120fps
+      if (lastTime === null) lastTime = now;
+      const rawDelta = now - lastTime;
+      lastTime = now;
+      // Cap at 100ms (e.g. tab was hidden) so the game doesn't lurch
+      const dt = Math.min(rawDelta, 100) / (1000 / 60);
       const raw = gameRef.current;
       const gs: GameState = { cigarettes: [], smokeParticles: [], buzzed: false, buzzTimer: 0, cigIdCounter: 0, runCigsSmoked: 0, ...raw };
       gameRef.current = gs;
@@ -883,7 +890,7 @@ export default function App() {
       }
 
       if (gs.phase === "playing") {
-        const speedMult = gs.slowActive ? 0.3 : 1.0;
+        const speedMult = (gs.slowActive ? 0.3 : 1.0) * dt;
         bgOffRef.current += stats.pipeSpeed * speedMult;
 
         const newVy = gs.bird.vy + GRAVITY * speedMult;
@@ -951,14 +958,14 @@ export default function App() {
         });
         const newRunCigsSmoked = gs.runCigsSmoked + newlyCollected;
         if (newBuzzed && !newlyCollected) {
-          newBuzzTimer = Math.max(0, newBuzzTimer - 1);
+          newBuzzTimer = Math.max(0, newBuzzTimer - dt);
           if (newBuzzTimer === 0) newBuzzed = false;
         }
 
         let slowActive = gs.slowActive, slowTimer = gs.slowTimer;
-        if (slowActive) { slowTimer = Math.max(0, slowTimer - 1); if (slowTimer === 0) slowActive = false; }
+        if (slowActive) { slowTimer = Math.max(0, slowTimer - dt); if (slowTimer === 0) slowActive = false; }
 
-        let newSmoke = gs.smokeParticles.map((p) => ({ ...p, x: p.x + p.dx, y: p.y + p.dy, alpha: p.alpha - 0.018, size: p.size + 0.06 })).filter((p) => p.alpha > 0);
+        let newSmoke = gs.smokeParticles.map((p) => ({ ...p, x: p.x + p.dx * dt, y: p.y + p.dy * dt, alpha: p.alpha - 0.018 * dt, size: p.size + 0.06 * dt })).filter((p) => p.alpha > 0);
         if (newBuzzed && newFrame % 4 === 0) {
           newSmoke = [...newSmoke, {
             x: BIRD_X + 20 + Math.random() * 4, y: newBird.y + (Math.random() - 0.5) * 4,
@@ -1019,11 +1026,11 @@ export default function App() {
         gameRef.current = nextState;
 
       } else if (gs.phase === "idle") {
-        bgOffRef.current += 0.4;
-        gameRef.current = { ...gs, frame: gs.frame + 1, bird: { ...gs.bird, y: CANVAS_H / 2 + Math.sin(gs.frame * 0.05) * 8, angle: 0, vy: 0 } };
+        bgOffRef.current += 0.4 * dt;
+        gameRef.current = { ...gs, frame: gs.frame + dt, bird: { ...gs.bird, y: CANVAS_H / 2 + Math.sin(gs.frame * 0.05) * 8, angle: 0, vy: 0 } };
       } else {
         // dead
-        gameRef.current = { ...gs, frame: gs.frame + 1 };
+        gameRef.current = { ...gs, frame: gs.frame + dt };
       }
 
       drawScene(ctx, gameRef.current, bgOffRef.current, sd.upgrades, sd);
