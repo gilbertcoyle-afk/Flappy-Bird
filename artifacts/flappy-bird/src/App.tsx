@@ -644,11 +644,25 @@ function makeInitialGame(initialShieldCharges = 0): GameState {
   };
 }
 
+function useWindowWidth() {
+  const [width, setWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+}
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<GameState>(makeInitialGame());
   const bgOffRef = useRef(0);
   const rafRef = useRef(0);
+
+  const windowWidth = useWindowWidth();
+  const isMobile = windowWidth < 700;
+  const canvasScale = isMobile ? Math.min(1, (windowWidth - 16) / CANVAS_W) : 1;
 
   const [saveData, setSaveData] = useState<SaveData>(loadSave);
   const saveDataRef = useRef<SaveData>(saveData);
