@@ -1017,25 +1017,48 @@ export default function App() {
   const canPrestige = saveData.bestScore >= prestigeReq;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center", padding: "12px", gap: "16px", flexWrap: "wrap" }}>
+    <div style={{
+      minHeight: "100vh", background: "#0f0f1a",
+      display: "flex",
+      flexDirection: isMobile ? "column" : "row",
+      alignItems: isMobile ? "stretch" : "center",
+      justifyContent: "center",
+      padding: isMobile ? "8px" : "12px",
+      gap: isMobile ? "10px" : "16px",
+    }}>
 
       {/* Game Canvas */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
-        <canvas
-          ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-          onClick={(e) => handleCanvasInteract(e.clientX, e.clientY)}
-          onTouchStart={(e) => { e.preventDefault(); const t = e.touches[0]; if (t) handleCanvasInteract(t.clientX, t.clientY); }}
-          style={{ borderRadius: 14, boxShadow: "0 8px 40px rgba(0,0,0,0.7)", cursor: "pointer", touchAction: "none", display: "block" }}
-        />
+        <div style={{
+          width: CANVAS_W * canvasScale,
+          height: CANVAS_H * canvasScale,
+          flexShrink: 0,
+          alignSelf: "center",
+        }}>
+          <canvas
+            ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
+            onClick={(e) => handleCanvasInteract(e.clientX, e.clientY)}
+            onTouchStart={(e) => { e.preventDefault(); const t = e.touches[0]; if (t) handleCanvasInteract(t.clientX, t.clientY); }}
+            style={{
+              borderRadius: 14, boxShadow: "0 8px 40px rgba(0,0,0,0.7)",
+              cursor: "pointer", touchAction: "none", display: "block",
+              transformOrigin: "top left",
+              transform: canvasScale !== 1 ? `scale(${canvasScale})` : undefined,
+            }}
+          />
+        </div>
         {stats.slowDuration > 0 && (
           <button
             onClick={activateSlow}
             disabled={gs.phase !== "playing" || gs.slowActive}
             style={{
               background: gs.slowActive ? "#6b21a8" : gs.phase === "playing" ? "#7c3aed" : "#374151",
-              color: "white", border: "none", borderRadius: 8, padding: "8px 20px",
-              fontSize: 14, fontWeight: "bold", cursor: gs.phase === "playing" && !gs.slowActive ? "pointer" : "default",
+              color: "white", border: "none", borderRadius: 8,
+              padding: isMobile ? "10px 24px" : "8px 20px",
+              fontSize: isMobile ? 16 : 14, fontWeight: "bold",
+              cursor: gs.phase === "playing" && !gs.slowActive ? "pointer" : "default",
               opacity: gs.phase === "playing" && !gs.slowActive ? 1 : 0.5, transition: "all 0.2s",
+              width: isMobile ? "100%" : undefined,
             }}
           >
             ⏱️ Slow Time {gs.slowActive ? "(active)" : "(S)"}
@@ -1044,7 +1067,15 @@ export default function App() {
       </div>
 
       {/* Shop Panel */}
-      <div style={{ width: 290, background: "#1a1f2e", borderRadius: 16, padding: "16px", boxShadow: "0 4px 30px rgba(0,0,0,0.6)", display: "flex", flexDirection: "column", gap: "10px", maxHeight: "90vh", overflowY: "auto" }}>
+      <div style={{
+        width: isMobile ? "100%" : 290,
+        background: "#1a1f2e", borderRadius: 16, padding: "16px",
+        boxShadow: "0 4px 30px rgba(0,0,0,0.6)",
+        display: "flex", flexDirection: "column", gap: "10px",
+        maxHeight: isMobile ? "none" : "90vh",
+        overflowY: isMobile ? "visible" : "auto",
+        boxSizing: "border-box",
+      }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
