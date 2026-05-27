@@ -11,10 +11,12 @@ import {
 const router: IRouter = Router();
 
 router.get("/leaderboard", async (req, res): Promise<void> => {
+  const sortBy = req.query.sort === "coins" ? "lifetimeCoins" : "bestScore";
+
   const rows = await db
     .select()
     .from(userProgressTable)
-    .orderBy(desc(userProgressTable.bestScore))
+    .orderBy(desc(userProgressTable[sortBy]))
     .limit(20);
 
   const entries = rows.map((r, i) => ({
@@ -25,6 +27,7 @@ router.get("/leaderboard", async (req, res): Promise<void> => {
     bestScore: r.bestScore,
     prestigeLevel: r.prestigeLevel,
     totalRuns: r.totalRuns,
+    lifetimeCoins: r.lifetimeCoins,
   }));
 
   res.json(GetLeaderboardResponse.parse({ entries }));
@@ -42,7 +45,7 @@ router.post("/scores", async (req, res): Promise<void> => {
     return;
   }
 
-  const { bestScore, totalRuns, cigarettesSmoked, prestigeLevel } = parsed.data;
+  const { bestScore, totalRuns, cigarettesSmoked, prestigeLevel, lifetimeCoins } = parsed.data;
   const user = req.user;
 
   const username =
@@ -69,6 +72,7 @@ router.post("/scores", async (req, res): Promise<void> => {
       totalRuns,
       cigarettesSmoked,
       prestigeLevel,
+      lifetimeCoins,
     })
     .onConflictDoUpdate({
       target: userProgressTable.userId,
@@ -79,6 +83,7 @@ router.post("/scores", async (req, res): Promise<void> => {
         totalRuns,
         cigarettesSmoked,
         prestigeLevel,
+        lifetimeCoins,
         updatedAt: new Date(),
       },
     });

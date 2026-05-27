@@ -111,6 +111,7 @@ interface LeaderboardEntry {
   bestScore: number;
   prestigeLevel: number;
   totalRuns: number;
+  lifetimeCoins: number;
 }
 
 // ─── Perk Definitions ─────────────────────────────────────────────────────────
@@ -656,6 +657,7 @@ export default function App() {
 
   const { user, isAuthenticated, isLoading: authLoading, login, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<"shop" | "leaderboard">("shop");
+  const [leaderboardSort, setLeaderboardSort] = useState<"score" | "coins">("score");
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const prevTotalRunsRef = useRef(saveData.totalRuns);
@@ -773,11 +775,11 @@ export default function App() {
   useEffect(() => {
     if (activeTab !== "leaderboard") return;
     setLeaderboardLoading(true);
-    fetch("/api/leaderboard")
+    fetch(`/api/leaderboard?sort=${leaderboardSort}`)
       .then((r) => r.json())
       .then((d: { entries?: LeaderboardEntry[] }) => { setLeaderboard(d.entries ?? []); setLeaderboardLoading(false); })
       .catch(() => setLeaderboardLoading(false));
-  }, [activeTab]);
+  }, [activeTab, leaderboardSort]);
 
   // ── Score submission after each run ─────────────────────────────────────
   useEffect(() => {
@@ -789,9 +791,10 @@ export default function App() {
       body: JSON.stringify({
         bestScore: saveData.bestScore, totalRuns: saveData.totalRuns,
         cigarettesSmoked: saveData.cigarettesSmoked || 0, prestigeLevel: saveData.prestigeLevel || 0,
+        lifetimeCoins: saveData.lifetimeCoins || 0,
       }),
     }).catch(() => {});
-  }, [saveData.totalRuns, saveData.bestScore, saveData.cigarettesSmoked, saveData.prestigeLevel, isAuthenticated]);
+  }, [saveData.totalRuns, saveData.bestScore, saveData.cigarettesSmoked, saveData.prestigeLevel, saveData.lifetimeCoins, isAuthenticated]);
 
   // ── Keyboard ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1194,6 +1197,21 @@ export default function App() {
                 <button onClick={login} style={{ background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "white", border: "none", borderRadius: 8, padding: "6px 16px", fontSize: 12, fontWeight: "bold", cursor: "pointer" }}>Log in</button>
               </div>
             )}
+
+            {/* Sort toggle */}
+            <div style={{ display: "flex", background: "#111827", borderRadius: 8, padding: 3, gap: 3 }}>
+              {(["score", "coins"] as const).map((s) => (
+                <button key={s} onClick={() => setLeaderboardSort(s)} style={{
+                  flex: 1, background: leaderboardSort === s ? "#1e293b" : "transparent",
+                  color: leaderboardSort === s ? "#e5e7eb" : "#6b7280",
+                  border: "none", borderRadius: 6, padding: "5px 0", fontSize: 11,
+                  fontWeight: leaderboardSort === s ? "bold" : "normal", cursor: "pointer",
+                }}>
+                  {s === "score" ? "🏆 Top Score" : "🪙 Most Coins"}
+                </button>
+              ))}
+            </div>
+
             {leaderboardLoading ? (
               <div style={{ textAlign: "center", color: "#4b5563", padding: "20px 0", fontSize: 13 }}>Loading...</div>
             ) : leaderboard.length === 0 ? (
@@ -1222,15 +1240,26 @@ export default function App() {
                     </div>
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ color: "#a3e635", fontWeight: "bold", fontSize: 14 }}>{entry.bestScore}</div>
-                    <div style={{ color: "#4b5563", fontSize: 10 }}>best</div>
+                    {leaderboardSort === "score" ? (
+                      <>
+                        <div style={{ color: "#a3e635", fontWeight: "bold", fontSize: 14 }}>{entry.bestScore}</div>
+                        <div style={{ color: "#4b5563", fontSize: 10 }}>best score</div>
+                        <div style={{ color: "#6b7280", fontSize: 10 }}>🪙 {(entry.lifetimeCoins ?? 0).toLocaleString()}</div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ color: "#F1C40F", fontWeight: "bold", fontSize: 14 }}>🪙 {(entry.lifetimeCoins ?? 0).toLocaleString()}</div>
+                        <div style={{ color: "#4b5563", fontSize: 10 }}>lifetime coins</div>
+                        <div style={{ color: "#6b7280", fontSize: 10 }}>best: {entry.bestScore}</div>
+                      </>
+                    )}
                   </div>
                 </div>
               );
             })}
             <button onClick={() => {
               setLeaderboardLoading(true);
-              fetch("/api/leaderboard").then((r) => r.json()).then((d: { entries?: LeaderboardEntry[] }) => { setLeaderboard(d.entries ?? []); setLeaderboardLoading(false); }).catch(() => setLeaderboardLoading(false));
+              fetch(`/api/leaderboard?sort=${leaderboardSort}`).then((r) => r.json()).then((d: { entries?: LeaderboardEntry[] }) => { setLeaderboard(d.entries ?? []); setLeaderboardLoading(false); }).catch(() => setLeaderboardLoading(false));
             }} style={{ background: "transparent", border: "1px solid #374151", color: "#6b7280", borderRadius: 8, padding: "6px 12px", fontSize: 11, cursor: "pointer" }}>
               ↻ Refresh
             </button>

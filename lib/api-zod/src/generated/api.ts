@@ -107,7 +107,8 @@ export const GetLeaderboardResponse = zod.object({
   "profileImageUrl": zod.string().nullish(),
   "bestScore": zod.number(),
   "prestigeLevel": zod.number(),
-  "totalRuns": zod.number()
+  "totalRuns": zod.number(),
+  "lifetimeCoins": zod.number()
 }))
 })
 
@@ -125,11 +126,14 @@ export const submitScoreBodyPrestigeLevelMin = 0;
 
 
 
+export const submitScoreBodyLifetimeCoinsMin = 0;
+
 export const SubmitScoreBody = zod.object({
   "bestScore": zod.number().min(submitScoreBodyBestScoreMin),
   "totalRuns": zod.number().min(submitScoreBodyTotalRunsMin),
   "cigarettesSmoked": zod.number().min(submitScoreBodyCigarettesSmokedMin),
-  "prestigeLevel": zod.number().min(submitScoreBodyPrestigeLevelMin)
+  "prestigeLevel": zod.number().min(submitScoreBodyPrestigeLevelMin),
+  "lifetimeCoins": zod.number().min(submitScoreBodyLifetimeCoinsMin)
 })
 
 export const SubmitScoreResponse = zod.object({

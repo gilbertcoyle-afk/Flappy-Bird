@@ -15,4 +15,5 @@ export interface LeaderboardEntry {
   bestScore: number;
   prestigeLevel: number;
   totalRuns: number;
+  lifetimeCoins: number;
 }

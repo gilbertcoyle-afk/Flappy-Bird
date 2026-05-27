@@ -292,7 +292,7 @@ components:
           type: string
     LeaderboardEntry:
       type: object
-      required: [rank, userId, username, bestScore, prestigeLevel, totalRuns]
+      required: [rank, userId, username, bestScore, prestigeLevel, totalRuns, lifetimeCoins]
       properties:
         rank:
           type: integer
@@ -308,6 +308,8 @@ components:
           type: integer
         totalRuns:
           type: integer
+        lifetimeCoins:
+          type: integer
     LeaderboardResponse:
       type: object
       required: [entries]
@@ -318,7 +320,7 @@ components:
             $ref: '#/components/schemas/LeaderboardEntry'
     ScorePayload:
       type: object
-      required: [bestScore, totalRuns, cigarettesSmoked, prestigeLevel]
+      required: [bestScore, totalRuns, cigarettesSmoked, prestigeLevel, lifetimeCoins]
       properties:
         bestScore:
           type: integer
@@ -330,6 +332,9 @@ components:
           type: integer
           minimum: 0
         prestigeLevel:
+          type: integer
+          minimum: 0
+        lifetimeCoins:
           type: integer
           minimum: 0
     ScoreResult:

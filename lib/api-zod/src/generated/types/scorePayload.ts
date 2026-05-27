@@ -15,4 +15,6 @@ export interface ScorePayload {
   cigarettesSmoked: number;
   /** @minimum 0 */
   prestigeLevel: number;
+  /** @minimum 0 */
+  lifetimeCoins: number;
 }
